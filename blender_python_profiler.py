@@ -19,23 +19,22 @@ bl_info = {
 }
 
 profile = cProfile.Profile()
+is_profile_enabled = False
 
 
-class BPP_OT_enable_profiling(bpy.types.Operator):
-    bl_idname = "bpp.enable"
-    bl_label = "Profiling: Enable"
-
-    def execute(self, context):
-        profile.enable()
-        return {"FINISHED"}
-
-
-class BPP_OT_disable_profiling(bpy.types.Operator):
-    bl_idname = "bpp.disable"
-    bl_label = "Profiling: Disable"
+class BPP_OT_toggle_profiling(bpy.types.Operator):
+    """Toggle profiling"""
+    bl_idname = "bpp.toggle_profiling"
+    bl_label = "Profiling: Toggle"
 
     def execute(self, context):
-        profile.disable()
+        global is_profile_enabled
+        if not is_profile_enabled:
+            profile.enable()
+            is_profile_enabled = True
+        else:
+            profile.disable()
+            is_profile_enabled = False
         return {"FINISHED"}
 
 
@@ -66,13 +65,13 @@ class BPP_PT_main(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("bpp.enable", text="Enable")
-        layout.operator("bpp.disable", text="Disable")
+        layout.operator("bpp.toggle_profiling",
+                        text="Stop" if is_profile_enabled else "Start",
+                        icon="PAUSE" if is_profile_enabled else "PLAY")
         layout.operator("bpp.export", text="Export Statistics")
 
 
-classes = [BPP_OT_disable_profiling,
-           BPP_OT_enable_profiling,
+classes = [BPP_OT_toggle_profiling,
            BPP_OT_export_stats,
            BPP_PT_main]
 
