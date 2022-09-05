@@ -43,6 +43,7 @@ class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
     stats_regex_filter: bpy.props.StringProperty(default="", options={"HIDDEN", "SKIP_SAVE"})
+    sorting_criteria: bpy.props.StringProperty(default=SortKey.CUMULATIVE, options={"HIDDEN", "SKIP_SAVE"})
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -51,10 +52,11 @@ class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
     def execute(self, context):
         global profile
         assert profile is not None
+
         with open(self.filepath, 'w') as file:
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(profile, stream=file).sort_stats(sortby)
+            ps = pstats.Stats(profile, stream=file).sort_stats(self.sorting_criteria)
             ps.print_stats(self.stats_regex_filter)
+
         profile = None
         return {"FINISHED"}
 
@@ -76,11 +78,14 @@ class BPP_PT_main(bpy.types.Panel):
             layout.prop(addon_prefs, "addon")
             stats_regex_filter = os.sep + addon_prefs.addon + os.sep
 
+        layout.prop(addon_prefs, "sorting_criteria", text="Sort by")
+
         if profile is None:
             layout.operator("bpp.start_profiling", text="Start", icon="PLAY")
         else:
             op = layout.operator("bpp.stop_profiling_and_export_stats", text="Stop", icon="EXPORT")
             op.stats_regex_filter = stats_regex_filter
+            op.sorting_criteria = addon_prefs.sorting_criteria
 
 
 # Stores addon enum items to avoid crash because of string garbage collection
@@ -107,6 +112,15 @@ class BPP_preferences(bpy.types.AddonPreferences):
     filter_stats_by_addon: bpy.props.BoolProperty(name="Filter by add-on",
                                                   description="Only export statistics for the selected add-on",
                                                   default=True)
+    sorting_criteria: bpy.props.EnumProperty(name="Sorting criteria", items=[
+        (SortKey.TIME, "Total Time",
+         "Total time spent in the given function (and excluding time made in calls to sub-functions)", 0),
+        (SortKey.CALLS, "Number Of Calls", "Number of calls", 1),
+        (SortKey.PCALLS, "Time Per Call", "Total time divided by number of calls", 2),
+        (SortKey.CUMULATIVE, "Cumulative Time",
+         "Cumulative time spent in a function and all subfunctions (from invocation till exit). This figure is accurate even for recursive functions",
+         3)
+    ], default=SortKey.CUMULATIVE)
 
 
 classes = [BPP_OT_start_profiling,
