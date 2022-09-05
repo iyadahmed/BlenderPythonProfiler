@@ -124,6 +124,9 @@ class BPP_PT_main(bpy.types.Panel):
             op.filter_stats_by_addon = addon_prefs.filter_stats_by_addon
             op.addon = addon_prefs.addon
 
+        op = layout.operator("wm.url_open", text="Support Developer", icon="FUND")
+        op.url = "https://ko-fi.com/iyadahmed"
+
 
 class BPP_preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
