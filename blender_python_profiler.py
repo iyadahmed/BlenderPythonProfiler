@@ -76,7 +76,7 @@ class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
 
-    # Allow setting properties in export dialog (because I believe in second chances)
+    # Allow setting properties in export dialog for convenience
     filter_stats_by_addon: filter_stats_by_addon_prop
     addon: addon_prop
     sorting_criteria: sorting_criteria_prop
