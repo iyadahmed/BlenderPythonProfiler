@@ -111,10 +111,8 @@ class BPP_PT_main(bpy.types.Panel):
         addon_prefs = context.preferences.addons[__name__].preferences
 
         layout.prop(addon_prefs, "filter_stats_by_addon")
-        stats_regex_filter = ""
         if addon_prefs.filter_stats_by_addon:
             layout.prop(addon_prefs, "addon")
-            stats_regex_filter = os.sep + addon_prefs.addon + os.sep
 
         layout.prop(addon_prefs, "sorting_criteria", text="Sort by")
 
