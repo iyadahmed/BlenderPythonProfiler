@@ -39,16 +39,21 @@ class BPP_OT_disable_profiling(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class BPP_OT_print_stats(bpy.types.Operator):
-    bl_idname = "bpp.print"
-    bl_label = "Profiling: Print Statistics"
+class BPP_OT_export_stats(bpy.types.Operator):
+    bl_idname = "bpp.export"
+    bl_label = "Profiling: Export Statistics"
+
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
 
     def execute(self, context):
-        s = io.StringIO()
-        sortby = SortKey.CUMULATIVE
-        ps = pstats.Stats(profile, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print(s.getvalue())
+        with open(self.filepath, 'w') as file:
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(profile, stream=file).sort_stats(sortby)
+            ps.print_stats()
         return {"FINISHED"}
 
 
@@ -63,12 +68,12 @@ class BPP_PT_main(bpy.types.Panel):
 
         layout.operator("bpp.enable", text="Enable")
         layout.operator("bpp.disable", text="Disable")
-        layout.operator("bpp.print", text="Print Statistics")
+        layout.operator("bpp.export", text="Export Statistics")
 
 
 classes = [BPP_OT_disable_profiling,
            BPP_OT_enable_profiling,
-           BPP_OT_print_stats,
+           BPP_OT_export_stats,
            BPP_PT_main]
 
 
