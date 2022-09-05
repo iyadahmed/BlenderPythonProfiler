@@ -20,29 +20,26 @@ bl_info = {
     "category": "Scripting",
 }
 
-profile = cProfile.Profile()
-is_profile_enabled = False
+profile = None
 
 
-class BPP_OT_toggle_profiling(bpy.types.Operator):
-    """Toggle profiling"""
-    bl_idname = "bpp.toggle_profiling"
-    bl_label = "Profiling: Toggle"
+class BPP_OT_start_profiling(bpy.types.Operator):
+    """Start profiling"""
+    bl_idname = "bpp.start_profiling"
+    bl_label = "Profiling: Start"
 
     def execute(self, context):
-        global is_profile_enabled
-        if not is_profile_enabled:
-            profile.enable()
-            is_profile_enabled = True
-        else:
-            profile.disable()
-            is_profile_enabled = False
+        global profile
+        assert profile is None
+        profile = cProfile.Profile()
+        profile.enable()
         return {"FINISHED"}
 
 
-class BPP_OT_export_stats(bpy.types.Operator):
-    bl_idname = "bpp.export"
-    bl_label = "Profiling: Export Statistics"
+class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
+    """Stop profiling and export statistics"""
+    bl_idname = "bpp.stop_profiling_and_export_stats"
+    bl_label = "Export Statistics"
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
     stats_regex_filter: bpy.props.StringProperty(default="", options={"HIDDEN", "SKIP_SAVE"})
@@ -52,10 +49,13 @@ class BPP_OT_export_stats(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def execute(self, context):
+        global profile
+        assert profile is not None
         with open(self.filepath, 'w') as file:
             sortby = SortKey.CUMULATIVE
             ps = pstats.Stats(profile, stream=file).sort_stats(sortby)
             ps.print_stats(self.stats_regex_filter)
+        profile = None
         return {"FINISHED"}
 
 
@@ -66,19 +66,21 @@ class BPP_PT_main(bpy.types.Panel):
     bl_region_type = "UI"
 
     def draw(self, context):
+        global profile
         layout = self.layout
         addon_prefs = context.preferences.addons[__name__].preferences
 
-        layout.operator("bpp.toggle_profiling",
-                        text="Stop" if is_profile_enabled else "Start",
-                        icon="PAUSE" if is_profile_enabled else "PLAY")
-
         layout.prop(addon_prefs, "filter_stats_by_addon")
+        stats_regex_filter = ""
         if addon_prefs.filter_stats_by_addon:
             layout.prop(addon_prefs, "addon")
-        op = layout.operator("bpp.export", text="Export Statistics")
-        if addon_prefs.filter_stats_by_addon:
-            op.stats_regex_filter = os.sep + addon_prefs.addon + os.sep
+            stats_regex_filter = os.sep + addon_prefs.addon + os.sep
+
+        if profile is None:
+            layout.operator("bpp.start_profiling", text="Start", icon="PLAY")
+        else:
+            op = layout.operator("bpp.stop_profiling_and_export_stats", text="Stop", icon="EXPORT")
+            op.stats_regex_filter = stats_regex_filter
 
 
 # Stores addon enum items to avoid crash because of string garbage collection
@@ -107,8 +109,8 @@ class BPP_preferences(bpy.types.AddonPreferences):
                                                   default=True)
 
 
-classes = [BPP_OT_toggle_profiling,
-           BPP_OT_export_stats,
+classes = [BPP_OT_start_profiling,
+           BPP_OT_stop_profiling_and_export_stats,
            BPP_preferences,
            BPP_PT_main]
 
