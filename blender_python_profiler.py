@@ -22,6 +22,39 @@ bl_info = {
 
 profile = None
 
+filter_stats_by_addon_prop = bpy.props.BoolProperty(name="Filter by add-on",
+                                                    description="Only export statistics for the selected add-on",
+                                                    default=True)
+
+# Stores addon enum items to avoid crash because of string garbage collection
+addon_items = []
+
+
+def get_addon_items(self, context):
+    global addon_items
+    addon_items.clear()
+    i = 0
+    for module in addon_utils.modules():
+        loaded_default, loaded_state = addon_utils.check(module.__name__)
+        if loaded_state:
+            addon_items.append((module.__name__, module.bl_info["name"], "", i))
+            i += 1
+
+    return addon_items
+
+
+addon_prop = bpy.props.EnumProperty(name="Add-on", items=get_addon_items)
+
+sorting_criteria_prop = bpy.props.EnumProperty(name="Sorting criteria", items=[
+    (SortKey.TIME, "Total Time",
+     "Total time spent in the given function (and excluding time made in calls to sub-functions)", 0),
+    (SortKey.CALLS, "Number Of Calls", "Number of calls", 1),
+    (SortKey.PCALLS, "Time Per Call", "Total time divided by number of calls", 2),
+    (SortKey.CUMULATIVE, "Cumulative Time",
+     "Cumulative time spent in a function and all subfunctions (from invocation till exit). This figure is accurate even for recursive functions",
+     3)
+], default=SortKey.CUMULATIVE)
+
 
 class BPP_OT_start_profiling(bpy.types.Operator):
     """Start profiling"""
@@ -42,8 +75,11 @@ class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
     bl_label = "Export Statistics"
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
-    stats_regex_filter: bpy.props.StringProperty(default="", options={"HIDDEN", "SKIP_SAVE"})
-    sorting_criteria: bpy.props.StringProperty(default=SortKey.CUMULATIVE, options={"HIDDEN", "SKIP_SAVE"})
+
+    # Allow setting properties in export dialog (because I believe in second chances)
+    filter_stats_by_addon: filter_stats_by_addon_prop
+    addon: addon_prop
+    sorting_criteria: sorting_criteria_prop
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -53,9 +89,11 @@ class BPP_OT_stop_profiling_and_export_stats(bpy.types.Operator):
         global profile
         assert profile is not None
 
+        regex_filter = (os.sep + self.addon + os.sep) if self.filter_stats_by_addon else ""
         with open(self.filepath, 'w') as file:
-            ps = pstats.Stats(profile, stream=file).sort_stats(self.sorting_criteria)
-            ps.print_stats(self.stats_regex_filter)
+            ps = pstats.Stats(profile, stream=file)
+            ps.sort_stats(self.sorting_criteria)
+            ps.print_stats(regex_filter)
 
         profile = None
         return {"FINISHED"}
@@ -84,43 +122,17 @@ class BPP_PT_main(bpy.types.Panel):
             layout.operator("bpp.start_profiling", text="Start", icon="PLAY")
         else:
             op = layout.operator("bpp.stop_profiling_and_export_stats", text="Stop", icon="EXPORT")
-            op.stats_regex_filter = stats_regex_filter
             op.sorting_criteria = addon_prefs.sorting_criteria
-
-
-# Stores addon enum items to avoid crash because of string garbage collection
-addon_items = []
-
-
-def get_addon_items(self, context):
-    global addon_items
-    addon_items.clear()
-    i = 0
-    for module in addon_utils.modules():
-        loaded_default, loaded_state = addon_utils.check(module.__name__)
-        if loaded_state:
-            addon_items.append((module.__name__, module.bl_info["name"], "", i))
-            i += 1
-
-    return addon_items
+            op.filter_stats_by_addon = addon_prefs.filter_stats_by
+            op.addon = addon_prefs.addon
 
 
 class BPP_preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
-    addon: bpy.props.EnumProperty(name="Add-on", items=get_addon_items)
-    filter_stats_by_addon: bpy.props.BoolProperty(name="Filter by add-on",
-                                                  description="Only export statistics for the selected add-on",
-                                                  default=True)
-    sorting_criteria: bpy.props.EnumProperty(name="Sorting criteria", items=[
-        (SortKey.TIME, "Total Time",
-         "Total time spent in the given function (and excluding time made in calls to sub-functions)", 0),
-        (SortKey.CALLS, "Number Of Calls", "Number of calls", 1),
-        (SortKey.PCALLS, "Time Per Call", "Total time divided by number of calls", 2),
-        (SortKey.CUMULATIVE, "Cumulative Time",
-         "Cumulative time spent in a function and all subfunctions (from invocation till exit). This figure is accurate even for recursive functions",
-         3)
-    ], default=SortKey.CUMULATIVE)
+    addon: addon_prop
+    filter_stats_by_addon: filter_stats_by_addon_prop
+    sorting_criteria: sorting_criteria_prop
 
 
 classes = [BPP_OT_start_profiling,
