@@ -1,10 +1,10 @@
-import bpy
 import cProfile
-import io
+import os
 import pstats
 from pstats import SortKey
+
 import addon_utils
-import os
+import bpy
 
 bl_info = {
     "name": "Blender Python Profiler",
