@@ -121,7 +121,7 @@ class BPP_PT_main(bpy.types.Panel):
         else:
             op = layout.operator("bpp.stop_profiling_and_export_stats", text="Stop and Export", icon="EXPORT")
             op.sorting_criteria = addon_prefs.sorting_criteria
-            op.filter_stats_by_addon = addon_prefs.filter_stats_by
+            op.filter_stats_by_addon = addon_prefs.filter_stats_by_addon
             op.addon = addon_prefs.addon
 
 
